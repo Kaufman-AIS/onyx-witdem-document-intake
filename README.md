@@ -1,3 +1,3 @@
-# onyx-witdem-haystack
+# onyx-witdem-document-intake
 
-Onyx + Witdem + Haystack demo.
+Document Intake Agent demo: Onyx + Haystack + Witdem.
