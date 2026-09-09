@@ -14,7 +14,7 @@ services:
       - witdem-live-data:/app/data
     networks:
       witdem_default:
-        aliases: [receiver]
+        aliases: [receiver, witdem]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:4318/readiness', timeout=2)"]
       interval: 5s
