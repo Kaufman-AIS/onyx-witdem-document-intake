@@ -8,9 +8,14 @@ candidates=(
   "$BASE/healthcheck"
   "http://127.0.0.1:3001/api/health"
   "http://127.0.0.1:3001"
+  "http://127.0.0.1:3021/api/health"
+  "http://127.0.0.1:3021"
   "http://127.0.0.1:3000/auth/login"
+  "http://127.0.0.1:3020/auth/login"
   "https://127.0.0.1:3000/api/health"
   "https://127.0.0.1:3000"
+  "https://127.0.0.1:3020/api/health"
+  "https://127.0.0.1:3020"
 )
 
 for _ in $(seq 1 120); do
