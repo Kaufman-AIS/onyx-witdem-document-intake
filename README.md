@@ -62,6 +62,11 @@ to Google Drive and create Google Tasks. Start the tool server alongside the sta
 Register the tool in Onyx Admin and configure persona instructions — see
 [docs/intake-onyx-tool-setup.md](docs/intake-onyx-tool-setup.md).
 
+## Deploy (Hostinger)
+
+See [docs/deploy-hostinger.md](docs/deploy-hostinger.md) for VPS + GitHub Actions rollout
+(`onyx.kaufman-ais.com`, `demo.witdem.com`).
+
 ## Workflow contracts
 
 Every Witdem execution in this demo must complete with an explicit YAML workflow contract.
