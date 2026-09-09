@@ -1,6 +1,6 @@
 # Design: Hostinger deploy — Onyx + Witdem + Document Intake
 
-**Status:** Draft — pending user review  
+**Status:** Approved  
 **Date:** 2026-09-09  
 **Repo:** [Kaufman-AIS/onyx-witdem-document-intake](https://github.com/Kaufman-AIS/onyx-witdem-document-intake)  
 **Host:** `187.124.175.57` (Hostinger VPS)
