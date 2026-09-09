@@ -1,0 +1,29 @@
+services:
+  witdem-proxy:
+    image: onyx-witdem-proxy:local
+    build:
+      context: /Users/mvonhassel/Documents/witdem-oss/examples/onyx-demo
+      dockerfile: Dockerfile.proxy
+    ports:
+      - "3000:3000"
+      - "3001:8080"
+    environment:
+      ONYX_UPSTREAM: http://nginx:80
+      # Reach Witdem on the shared witdem_default network (host.docker.internal
+      # often resolves to IPv6-only and fails with "Network is unreachable").
+      WITDEM_ENDPOINT: http://receiver:4318
+      WITDEM_CONFIG: /app/witdem.yml
+    depends_on:
+      nginx:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - witdem_default
+    restart: unless-stopped
+
+networks:
+  witdem_default:
+    external: true
+    name: witdem_default

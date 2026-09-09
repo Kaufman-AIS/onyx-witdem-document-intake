@@ -1,0 +1,85 @@
+version: 2
+id: document-intake
+name: Document intake
+description: Classify and extract a document, store it in Drive, optionally create Tasks, and confirm.
+match:
+  runtime_names: [haystack, onyx-intake]
+  execution_names:
+    - "Document intake"
+    - "Document intake: *"
+
+stages:
+  - id: intake_received
+    name: Intake received
+    nodes:
+      - id: receive_intake
+        name: Receive intake request
+        kind: Intake
+        match:
+          names: [intake.receive]
+
+  - id: classify_extract
+    name: Classify and extract
+    depends_on: [intake_received]
+    nodes:
+      - id: classify_extract_doc
+        name: Classify and extract fields
+        kind: Generation
+        match:
+          names: [intake.classify]
+        operation:
+          type: text_generation
+        depends_on: [receive_intake]
+
+  - id: store_document
+    name: Store document
+    depends_on: [classify_extract]
+    nodes:
+      - id: store_drive
+        name: Store in Google Drive
+        kind: Action
+        match:
+          names: [intake.drive]
+        operation:
+          type: tool
+        depends_on: [classify_extract_doc]
+
+  - id: create_tasks
+    name: Create tasks
+    depends_on: [store_document]
+    nodes:
+      - id: create_google_tasks
+        name: Create Google Tasks
+        kind: Action
+        match:
+          names: [intake.tasks]
+        operation:
+          type: tool
+        depends_on:
+          - node: classify_extract_doc
+            type: branch
+            route: has_tasks
+
+  - id: confirm
+    name: Confirm
+    depends_on: [store_document, create_tasks]
+    nodes:
+      - id: confirm_intake
+        name: Confirm intake result
+        kind: Action
+        match:
+          names: [intake.confirm]
+        operation:
+          type: tool
+        depends_on: [store_drive, create_google_tasks, classify_extract_doc]
+
+outcomes:
+  - id: stored
+    name: Document stored
+    from: [confirm_intake]
+  - id: stored_with_tasks
+    name: Document stored with tasks
+    from: [confirm_intake]
+  - id: failed
+    name: Intake failed
+    from: [receive_intake]

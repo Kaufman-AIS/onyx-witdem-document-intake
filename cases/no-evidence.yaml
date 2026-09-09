@@ -1,0 +1,7 @@
+case_id: no-evidence
+contract: knowledge_answer
+message: "What was our Q3 2019 revenue in the Antarctic division?"
+expected_grounded: false
+expectations:
+  max_documents: 0
+tags: [out-of-corpus]

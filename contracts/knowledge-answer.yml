@@ -1,0 +1,38 @@
+version: 2
+id: knowledge_answer
+name: Knowledge answer
+description: Return a useful answer grounded in retrieved internal knowledge when expected.
+
+result:
+  name: Agent answer status
+  values:
+    answered: A non-empty answer was produced.
+    failed: The chat run failed or returned no answer.
+
+decision:
+  name: Grounding decision
+  description: Whether retrieval evidence matched the held-out case expectation.
+  values:
+    grounded: Retrieval evidence supported the answer.
+    ungrounded: No supporting retrieval evidence.
+
+goal:
+  name: Useful grounded answer
+  description: Deliver a non-empty answer that matches the expected grounding outcome.
+  requirements:
+    useful_grounded_answer:
+      name: Useful grounded answer
+      failure:
+        label: Answer missing or grounding mismatch
+
+metrics:
+  retrieved_documents:
+    name: Retrieved documents
+    unit: documents
+  citations:
+    name: Citations
+    unit: citations
+
+dimensions:
+  case_id:
+    name: Case id

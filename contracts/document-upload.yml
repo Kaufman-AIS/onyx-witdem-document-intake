@@ -1,0 +1,32 @@
+version: 2
+id: document_upload
+name: Document upload
+description: Accept user file uploads that provide chat context in the Onyx UI.
+
+result:
+  name: Upload status
+  values:
+    uploaded: Upload was recorded.
+
+decision:
+  name: Upload accepted
+  values:
+    accepted: At least one file was accepted.
+    rejected: No files were accepted.
+
+goal:
+  name: Files uploaded for chat
+  requirements:
+    files_accepted:
+      name: Files accepted
+      failure:
+        label: No files accepted
+
+metrics:
+  uploaded_files:
+    name: Uploaded files
+    unit: files
+
+dimensions:
+  case_id:
+    name: Case id

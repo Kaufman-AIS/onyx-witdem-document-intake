@@ -1,0 +1,74 @@
+version: 2
+id: onyx-agent
+name: Onyx knowledge agent
+description: User question answered via internal search, optional tools, and cited response.
+match:
+  runtime_names: [onyx]
+  execution_names:
+    - "Onyx chat: *"
+    - "Onyx UI chat: *"
+    - "Onyx UI upload"
+
+stages:
+  - id: intake
+    name: Intake
+    nodes:
+      - id: receive_message
+        name: Receive user message
+        kind: Intake
+        match:
+          names: [onyx.chat]
+
+  - id: knowledge
+    name: Knowledge retrieval
+    depends_on: [intake]
+    nodes:
+      - id: search
+        name: Search knowledge base
+        kind: Retrieval
+        match:
+          names: [onyx.search]
+        operation:
+          type: retrieval
+          expects: [documents.output]
+        depends_on:
+          - node: receive_message
+            type: branch
+            route: needs_search
+
+  - id: tools
+    name: Tool execution
+    depends_on: [knowledge]
+    nodes:
+      - id: run_tools
+        name: Execute agent tools
+        kind: Action
+        match:
+          names: [onyx.tool]
+        operation:
+          type: tool
+        depends_on:
+          - node: receive_message
+            type: branch
+            route: tools_used
+
+  - id: respond
+    name: Respond
+    depends_on: [intake, knowledge, tools]
+    nodes:
+      - id: generate_answer
+        name: Generate cited answer
+        kind: Generation
+        match:
+          names: [onyx.generate]
+        operation:
+          type: text_generation
+        depends_on: [search, run_tools, receive_message]
+
+outcomes:
+  - id: answered
+    name: Question answered
+    from: [generate_answer]
+  - id: failed
+    name: Request failed
+    from: [receive_message]

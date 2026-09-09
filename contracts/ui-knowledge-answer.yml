@@ -1,0 +1,37 @@
+version: 2
+id: ui_knowledge_answer
+name: UI knowledge answer
+description: Evaluate ad-hoc Onyx UI chat without a held-out grounding expectation.
+
+result:
+  name: Agent answer status
+  values:
+    answered: A non-empty answer was produced.
+    failed: The chat run failed or returned no answer.
+
+decision:
+  name: Grounding observed
+  values:
+    grounded: Retrieval evidence supported the answer.
+    ungrounded: No supporting retrieval evidence.
+
+goal:
+  name: Useful UI answer
+  description: Deliver a non-empty answer from the knowledge agent.
+  requirements:
+    useful_answer:
+      name: Useful answer
+      failure:
+        label: Empty or failed answer
+
+metrics:
+  retrieved_documents:
+    name: Retrieved documents
+    unit: documents
+  citations:
+    name: Citations
+    unit: citations
+
+dimensions:
+  source:
+    name: Source

@@ -1,0 +1,7 @@
+case_id: grounded-answer
+contract: knowledge_answer
+message: "What is the enterprise refund policy and how do customers request a refund?"
+expected_grounded: true
+expectations:
+  min_documents: 1
+tags: [knowledge-base, grounding]

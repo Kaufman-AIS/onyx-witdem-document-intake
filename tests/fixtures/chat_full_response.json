@@ -1,0 +1,17 @@
+{
+  "answer": "Enterprise customers may request a full refund within 30 days of purchase by contacting support@example.com.",
+  "answer_citationless": "Enterprise customers may request a full refund within 30 days of purchase.",
+  "pre_answer_reasoning": null,
+  "tool_calls": [
+    {"tool_name": "internal_search", "tool_id": "search-1"}
+  ],
+  "top_documents": [
+    {"document_id": "doc-1", "semantic_identifier": "Refund Policy", "link": "seed://refund-policy.md"}
+  ],
+  "citation_info": [
+    {"citation_num": 1, "document_id": "doc-1"}
+  ],
+  "message_id": 42,
+  "chat_session_id": "00000000-0000-0000-0000-000000000001",
+  "error_msg": null
+}

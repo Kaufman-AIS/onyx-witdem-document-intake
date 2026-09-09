@@ -1,0 +1,37 @@
+version: 2
+id: document_intake
+name: Document intake
+description: Store an intake document in Drive and optionally create follow-up Tasks.
+
+result:
+  name: Intake status
+  values:
+    stored: Document stored without tasks.
+    stored_with_tasks: Document stored and tasks created.
+    failed: Intake failed to store the document.
+
+decision:
+  name: Intake success
+  values:
+    success: Intake stored the document.
+    failure: Intake did not store the document.
+
+goal:
+  name: Document filed
+  description: Persist the document to Drive with a non-empty path.
+  requirements:
+    document_filed:
+      name: Document filed
+      failure:
+        label: Drive path missing or intake failed
+
+metrics:
+  tasks_created:
+    name: Tasks created
+    unit: tasks
+
+dimensions:
+  doc_type:
+    name: Document type
+  source:
+    name: Source

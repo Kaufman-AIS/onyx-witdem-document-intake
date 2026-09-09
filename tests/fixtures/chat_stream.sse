@@ -1,0 +1,15 @@
+data: {"type":"message_start","id":"1","content":"","final_documents":null}
+
+data: {"type":"search_tool_start"}
+
+data: {"type":"search_tool_documents_delta","documents":[{"document_id":"doc-1","semantic_identifier":"Refund Policy","link":"seed://refund-policy.md"}]}
+
+data: {"type":"message_delta","content":"Enterprise customers may request a refund within 30 days."}
+
+data: {"type":"citation_info","citation_number":1,"document_id":"doc-1"}
+
+data: {"type":"message_end"}
+
+data: {"type":"llm_usage","provider":"openai","model":"gpt-4o-mini","prompt_tokens":50,"completion_tokens":10}
+
+data: {"type":"stop","stop_reason":"finished"}

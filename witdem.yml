@@ -1,0 +1,17 @@
+version: 2
+service:
+  name: onyx-knowledge-agent
+  description: Self-hosted Onyx knowledge agent with Witdem audit analytics.
+telemetry:
+  mode: auto
+  capture_content: false
+default_workflow: onyx-agent
+default_contract: knowledge_answer
+contracts:
+  - contracts/knowledge-answer.yml
+  - contracts/ui-knowledge-answer.yml
+  - contracts/document-upload.yml
+  - contracts/document-intake.yml
+workflows:
+  - workflows/onyx-agent.yml
+  - workflows/document-intake.yml

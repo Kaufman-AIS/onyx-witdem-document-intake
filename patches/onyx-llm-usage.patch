@@ -1,0 +1,209 @@
+diff --git a/backend/onyx/chat/chat_state.py b/backend/onyx/chat/chat_state.py
+index cc119b9..06da7eb 100644
+--- a/backend/onyx/chat/chat_state.py
++++ b/backend/onyx/chat/chat_state.py
+@@ -58,6 +58,10 @@ class ChatStateContainer:
+         self.pre_answer_processing_time: float | None = None
+         # Per-model: the outcome is persisted from whichever thread claims it.
+         self.request_params: dict[str, Any] | None = None
++        self.llm_prompt_tokens: int = 0
++        self.llm_completion_tokens: int = 0
++        self.llm_provider: str | None = None
++        self.llm_model: str | None = None
+         # Note: LLM cost tracking is now handled in multi_llm.py
+         # Search doc collection - maps dedup key to SearchDoc for all docs from tool calls
+         self._all_search_docs: dict[SearchDocKey, SearchDoc] = {}
+@@ -89,6 +93,36 @@ class ChatStateContainer:
+         with self._lock:
+             return self.request_params
+ 
++    def add_llm_usage(
++        self,
++        *,
++        prompt_tokens: int,
++        completion_tokens: int,
++        provider: str | None = None,
++        model: str | None = None,
++        is_answer_step: bool = False,
++    ) -> None:
++        with self._lock:
++            self.llm_prompt_tokens += max(0, int(prompt_tokens))
++            self.llm_completion_tokens += max(0, int(completion_tokens))
++            if is_answer_step:
++                if provider:
++                    self.llm_provider = provider
++                if model:
++                    self.llm_model = model
++
++    def get_llm_usage_snapshot(self) -> dict[str, Any] | None:
++        with self._lock:
++            if self.llm_prompt_tokens == 0 and self.llm_completion_tokens == 0:
++                if not self.llm_provider and not self.llm_model:
++                    return None
++            return {
++                "provider": self.llm_provider,
++                "model": self.llm_model,
++                "prompt_tokens": self.llm_prompt_tokens,
++                "completion_tokens": self.llm_completion_tokens,
++            }
++
+     def set_citation_mapping(self, citation_to_doc: CitationMapping) -> None:
+         """Set the citation mapping from citation processor."""
+         with self._lock:
+diff --git a/backend/onyx/chat/llm_loop.py b/backend/onyx/chat/llm_loop.py
+index 6363afc..8968646 100644
+--- a/backend/onyx/chat/llm_loop.py
++++ b/backend/onyx/chat/llm_loop.py
+@@ -57,6 +57,7 @@ from onyx.prompts.chat_prompts import (
+ from onyx.prompts.prompt_utils import substitute_user_placeholders
+ from onyx.server.query_and_chat.placement import Placement
+ from onyx.server.query_and_chat.streaming_models import (
++    LlmUsage,
+     OverallStop,
+     Packet,
+     ToolCallDebug,
+@@ -1400,6 +1401,25 @@ def run_llm_loop(
+                 "or serving API misconfiguration."
+             )
+ 
++        snapshot = state_container.get_llm_usage_snapshot()
++        if snapshot is not None:
++            emitter.emit(
++                Packet(
++                    placement=Placement(
++                        turn_index=llm_cycle_count  # ty: ignore[possibly-unresolved-reference]
++                        + reasoning_cycles
++                    ),
++                    obj=LlmUsage(
++                        provider=snapshot.get("provider"),
++                        model=snapshot.get("model"),
++                        prompt_tokens=int(snapshot.get("prompt_tokens") or 0),
++                        completion_tokens=int(
++                            snapshot.get("completion_tokens") or 0
++                        ),
++                    ),
++                )
++            )
++
+         emitter.emit(
+             Packet(
+                 placement=Placement(
+diff --git a/backend/onyx/chat/llm_step.py b/backend/onyx/chat/llm_step.py
+index 2bbbcb6..9a824df 100644
+--- a/backend/onyx/chat/llm_step.py
++++ b/backend/onyx/chat/llm_step.py
+@@ -1327,6 +1327,14 @@ def run_llm_step_pkt_generator(
+                     "cache_read_input_tokens": usage.cache_read_input_tokens,
+                     "cache_creation_input_tokens": usage.cache_creation_input_tokens,
+                 }
++                if state_container:
++                    state_container.add_llm_usage(
++                        prompt_tokens=usage.prompt_tokens or 0,
++                        completion_tokens=usage.completion_tokens or 0,
++                        provider=getattr(llm.config, "model_provider", None),
++                        model=getattr(llm.config, "model_name", None),
++                        is_answer_step=True,
++                    )
+                 # Note: LLM cost tracking is now handled in multi_llm.py
+             finish_reason = packet.choice.finish_reason
+             if finish_reason:
+diff --git a/backend/onyx/chat/models.py b/backend/onyx/chat/models.py
+index 57a3426..5fc2c68 100644
+--- a/backend/onyx/chat/models.py
++++ b/backend/onyx/chat/models.py
+@@ -77,6 +77,11 @@ class ChatBasicResponse(BaseModel):
+     citation_info: list[CitationInfo]
+ 
+ 
++class LlmUsageInfo(BaseModel):
++    prompt_tokens: int
++    completion_tokens: int
++
++
+ class ChatFullResponse(BaseModel):
+     """Complete non-streaming response with all available data.
+     NOTE: This model is used for the core flow of the Onyx application, any changes to it should be reviewed and approved by an
+@@ -100,6 +105,9 @@ class ChatFullResponse(BaseModel):
+     # packet does. A server that omits it did not honor an incognito request.
+     incognito: bool = False
+     error_msg: str | None = None
++    llm_provider: str | None = None
++    llm_model: str | None = None
++    usage: LlmUsageInfo | None = None
+ 
+ 
+ class ChatLoadedFile(InMemoryChatFile):
+diff --git a/backend/onyx/chat/process_message.py b/backend/onyx/chat/process_message.py
+index dc95af6..6576c79 100644
+--- a/backend/onyx/chat/process_message.py
++++ b/backend/onyx/chat/process_message.py
+@@ -61,6 +61,7 @@ from onyx.chat.models import (
+     CreateChatSessionID,
+     ExtractedContextFiles,
+     FileToolMetadata,
++    LlmUsageInfo,
+     SearchParams,
+     StreamingError,
+     ToolCallResponse,
+@@ -2252,6 +2253,18 @@ def gather_stream_full(
+         for tc in state_container.get_tool_calls()
+     ]
+ 
++    snapshot = state_container.get_llm_usage_snapshot()
++    usage_info = None
++    provider = None
++    model = None
++    if snapshot:
++        provider = snapshot.get("provider")
++        model = snapshot.get("model")
++        usage_info = LlmUsageInfo(
++            prompt_tokens=int(snapshot["prompt_tokens"]),
++            completion_tokens=int(snapshot["completion_tokens"]),
++        )
++
+     return ChatFullResponse(
+         answer=final_answer,
+         answer_citationless=remove_answer_citations(final_answer),
+@@ -2263,4 +2276,7 @@ def gather_stream_full(
+         chat_session_id=chat_session_id,
+         incognito=incognito,
+         error_msg=error_msg,
++        llm_provider=provider,
++        llm_model=model,
++        usage=usage_info,
+     )
+diff --git a/backend/onyx/server/query_and_chat/streaming_models.py b/backend/onyx/server/query_and_chat/streaming_models.py
+index b8ad771..045c9ed 100644
+--- a/backend/onyx/server/query_and_chat/streaming_models.py
++++ b/backend/onyx/server/query_and_chat/streaming_models.py
+@@ -13,6 +13,7 @@ class StreamingType(Enum):
+ 
+     SECTION_END = "section_end"
+     STOP = "stop"
++    LLM_USAGE = "llm_usage"
+     TOP_LEVEL_BRANCHING = "top_level_branching"
+     ERROR = "error"
+     CHAT_HEARTBEAT = "chat_heartbeat"
+@@ -79,6 +80,14 @@ class OverallStop(BaseObj):
+     stop_reason: str | None = None
+ 
+ 
++class LlmUsage(BaseObj):
++    type: Literal["llm_usage"] = StreamingType.LLM_USAGE.value
++    provider: str | None = None
++    model: str | None = None
++    prompt_tokens: int = 0
++    completion_tokens: int = 0
++
++
+ class TopLevelBranching(BaseObj):
+     # This class is used to give advanced heads up to the frontend that the top level flow is branching
+     # This is used to avoid having the frontend render the first call then rerendering the other parallel branches
+@@ -434,6 +443,7 @@ class BashToolDelta(BaseObj):
+ PacketObj = Union[
+     # Control Packets
+     OverallStop,
++    LlmUsage,
+     SectionEnd,
+     TopLevelBranching,
+     PacketException,
