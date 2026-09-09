@@ -21,15 +21,31 @@ if [[ ! -f "$COMPOSE_DIR/.env" ]]; then
 fi
 
 if [[ -n "${OPENAI_API_KEY:-}" ]]; then
-  if grep -q '^OPENAI_API_KEY=' "$COMPOSE_DIR/.env" 2>/dev/null; then
-    if [[ "$(uname)" == "Darwin" ]]; then
-      sed -i '' "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${OPENAI_API_KEY}|" "$COMPOSE_DIR/.env"
-    else
-      sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${OPENAI_API_KEY}|" "$COMPOSE_DIR/.env"
-    fi
-  else
-    echo "OPENAI_API_KEY=${OPENAI_API_KEY}" >> "$COMPOSE_DIR/.env"
-  fi
+  python3 - "$COMPOSE_DIR/.env" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+key = "OPENAI_API_KEY"
+raw = os.environ["OPENAI_API_KEY"]
+if raw == "" or all(c.isalnum() or c in "-_./:@+%" for c in raw):
+    val = raw
+else:
+    val = '"' + raw.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+out, found = [], False
+for line in lines:
+    if line.startswith(f"{key}="):
+        out.append(f"{key}={val}")
+        found = True
+    else:
+        out.append(line)
+if not found:
+    out.append(f"{key}={val}")
+path.write_text("\n".join(out) + "\n", encoding="utf-8")
+PY
 fi
 
 if grep -q '^USER_AUTH_SECRET=""$' "$COMPOSE_DIR/.env" 2>/dev/null || grep -q '^USER_AUTH_SECRET=$' "$COMPOSE_DIR/.env" 2>/dev/null; then
