@@ -1,11 +1,15 @@
 services:
   witdem-proxy:
-    ports:
+    ports: !override
       - "127.0.0.1:3000:3000"
       - "127.0.0.1:3001:8080"
     environment:
       WITDEM_ENDPOINT: http://witdem:4318
     restart: unless-stopped
+
+  nginx:
+    ports: !override
+      - "127.0.0.1:13000:80"
 
   intake:
     build:

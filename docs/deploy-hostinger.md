@@ -32,6 +32,8 @@ sudo apt install -y nginx certbot python3-certbot-nginx
 
 ## 2. Host nginx + TLS
 
+Enable HTTP-only first or use `certbot --nginx` before requiring TLS cert paths (templates assume certs exist).
+
 Templates live in-repo under `deploy/nginx/`:
 
 - `deploy/nginx/onyx.kaufman-ais.com.conf` → proxy to `127.0.0.1:3000`
