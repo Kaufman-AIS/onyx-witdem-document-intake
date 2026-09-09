@@ -40,8 +40,22 @@ jobs:
             APP=/opt/onyx-witdem-document-intake
             if [[ ! -d "$APP/.git" ]]; then
               sudo mkdir -p /opt
+              if [[ -e "$APP" ]]; then
+                if [[ -d "$APP/secrets" ]]; then
+                  sudo mkdir -p /tmp/onyx-witdem-secrets-backup
+                  sudo cp -a "$APP/secrets/." /tmp/onyx-witdem-secrets-backup/
+                fi
+                sudo rm -rf "$APP"
+              fi
               sudo git clone https://github.com/Kaufman-AIS/onyx-witdem-document-intake.git "$APP"
               sudo chown -R "$USER:$USER" "$APP"
+              if [[ -d /tmp/onyx-witdem-secrets-backup ]]; then
+                mkdir -p "$APP/secrets"
+                cp -a /tmp/onyx-witdem-secrets-backup/. "$APP/secrets/"
+                chmod 700 "$APP/secrets"
+                chmod 600 "$APP/secrets"/* 2>/dev/null || true
+                sudo rm -rf /tmp/onyx-witdem-secrets-backup
+              fi
             fi
             cd "$APP"
             git fetch origin main
