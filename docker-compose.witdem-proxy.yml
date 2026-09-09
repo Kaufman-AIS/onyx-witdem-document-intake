@@ -2,7 +2,7 @@ services:
   witdem-proxy:
     image: onyx-witdem-proxy:local
     build:
-      context: .
+      context: ${ONYX_DEMO_ROOT:-.}
       dockerfile: Dockerfile.proxy
     ports:
       - "3000:3000"

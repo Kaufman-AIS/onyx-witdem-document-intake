@@ -16,8 +16,9 @@ fi
 docker compose -f docker-compose.witdem.yml up -d
 
 COMPOSE_DIR="$ROOT/.onyx-upstream/deployment/docker_compose"
+export ONYX_DEMO_ROOT="$ROOT"
 docker compose \
-  --project-directory "$ROOT" \
+  --project-directory "$COMPOSE_DIR" \
   -f "$COMPOSE_DIR/docker-compose.yml" \
   -f "$ROOT/docker-compose.witdem-proxy.yml" \
   -f "$ROOT/docker-compose.prod.yml" \
