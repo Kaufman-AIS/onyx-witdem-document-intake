@@ -26,4 +26,5 @@ docker compose \
 
 curl -fsS --max-time 10 http://127.0.0.1:8501/health >/dev/null
 curl -fsS --max-time 10 http://127.0.0.1:8091/health >/dev/null
+curl -fsS --max-time 10 http://127.0.0.1:3000/ >/dev/null
 echo "deploy-remote: OK (local health checks passed)"
