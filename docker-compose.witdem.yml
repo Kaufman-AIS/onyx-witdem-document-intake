@@ -1,0 +1,67 @@
+name: witdem
+
+services:
+  witdem:
+    image: ${WITDEM_ANALYTICS_IMAGE:-ghcr.io/ebrahimisoheil/witdem-analytics:0.2.6}
+    command: ["witdem", "serve", "--host", "0.0.0.0", "--port", "4318", "--db", "/app/data/live.duckdb"]
+    ports:
+      - "127.0.0.1:4318:4318"
+    environment:
+      WITDEM_DATA_DIR: /app/data
+      WITDEM_DB_PATH: /app/data/live.duckdb
+      WITDEM_API_KEY: ${WITDEM_API_KEY:-}
+    volumes:
+      - witdem-live-data:/app/data
+    networks:
+      witdem_default:
+        aliases: [receiver]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:4318/readiness', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 12
+    restart: unless-stopped
+
+  elt-worker:
+    image: ${WITDEM_ANALYTICS_IMAGE:-ghcr.io/ebrahimisoheil/witdem-analytics:0.2.6}
+    command: ["witdem", "elt", "worker", "--poll-interval", "0.25"]
+    environment:
+      WITDEM_DATA_DIR: /app/data
+      WITDEM_DB_PATH: /app/data/live.duckdb
+    volumes:
+      - witdem-live-data:/app/data
+    networks: [witdem_default]
+    depends_on:
+      witdem:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dashboard:
+    image: ${WITDEM_ANALYTICS_IMAGE:-ghcr.io/ebrahimisoheil/witdem-analytics:0.2.6}
+    command: ["witdem", "dashboard", "--db", "/app/data/live.duckdb", "--dashboard-host", "0.0.0.0", "--dashboard-port", "8501"]
+    ports:
+      - "127.0.0.1:8501:8501"
+    environment:
+      WITDEM_DATA_DIR: /app/data
+      WITDEM_DB_PATH: /app/data/live.duckdb
+    volumes:
+      - witdem-live-data:/app/data
+    networks: [witdem_default]
+    depends_on:
+      witdem:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8501/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      start_period: 15s
+      retries: 12
+    restart: unless-stopped
+
+networks:
+  witdem_default:
+    name: witdem_default
+
+volumes:
+  witdem-live-data:
