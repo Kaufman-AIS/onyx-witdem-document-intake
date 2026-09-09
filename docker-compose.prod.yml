@@ -1,0 +1,29 @@
+services:
+  witdem-proxy:
+    ports:
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3001:8080"
+    environment:
+      WITDEM_ENDPOINT: http://witdem:4318
+    restart: unless-stopped
+
+  intake:
+    build:
+      context: .
+      dockerfile: Dockerfile.intake
+    image: onyx-witdem-intake:local
+    env_file:
+      - .env
+    environment:
+      WITDEM_ENDPOINT: http://witdem:4318
+      WITDEM_CONFIG: /app/witdem.yml
+      ONYX_API_BASE_URL: http://api_server:8080
+      INTAKE_USE_MEMORY: ${INTAKE_USE_MEMORY:-0}
+    ports:
+      - "127.0.0.1:8091:8091"
+    networks:
+      - default
+      - witdem_default
+    restart: unless-stopped
+    volumes:
+      - ./secrets:/run/secrets:ro
