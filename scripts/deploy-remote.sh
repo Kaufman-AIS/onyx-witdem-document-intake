@@ -26,9 +26,16 @@ docker compose \
 
 ./scripts/wait-onyx.sh || true
 
-curl -fsS --max-time 10 http://127.0.0.1:8501/health >/dev/null
-curl -fsS --max-time 10 http://127.0.0.1:8091/health >/dev/null
-curl -fsS --max-time 10 http://127.0.0.1:3020/ >/dev/null
-curl -fsS --max-time 10 http://127.0.0.1:3021/api/health >/dev/null || \
-  curl -fsS --max-time 10 http://127.0.0.1:3021/ >/dev/null
-echo "deploy-remote: OK (local health checks passed)"
+# Proxy may still be minting a self-signed cert for a few seconds after start.
+for _ in $(seq 1 60); do
+  if curl -fsS --max-time 5 http://127.0.0.1:8501/health >/dev/null \
+    && curl -fsS --max-time 5 http://127.0.0.1:8091/health >/dev/null \
+    && curl -fsS --max-time 5 http://127.0.0.1:3020/auth/login >/dev/null \
+    && curl -fsS --max-time 5 http://127.0.0.1:3021/api/health >/dev/null; then
+    echo "deploy-remote: OK (local health checks passed)"
+    exit 0
+  fi
+  sleep 2
+done
+echo "deploy-remote: health checks failed" >&2
+exit 1
