@@ -28,11 +28,8 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 key = "OPENAI_API_KEY"
-raw = os.environ["OPENAI_API_KEY"]
-if raw == "" or all(c.isalnum() or c in "-_./:@+%" for c in raw):
-    val = raw
-else:
-    val = '"' + raw.replace("\\", "\\\\").replace('"', '\\"') + '"'
+raw = os.environ["OPENAI_API_KEY"].replace("\r", "").replace("\n", "")
+val = raw
 
 lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
 out, found = [], False

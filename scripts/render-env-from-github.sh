@@ -39,9 +39,8 @@ vals = {
 }
 
 def escape(value: str) -> str:
-    if value == "" or all(c.isalnum() or c in "-_./:@+%" for c in value):
-        return value
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    # Keep Compose/dotenv single-line; never wrap in quotes (keys may contain ").
+    return value.replace("\r", "").replace("\n", "")
 
 out.write_text("".join(f"{k}={escape(v)}\n" for k, v in vals.items()), encoding="utf-8")
 out.chmod(0o600)
