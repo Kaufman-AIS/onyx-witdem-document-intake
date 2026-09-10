@@ -157,6 +157,24 @@ def test_onyx_file_client_resolves_file_id_by_name(monkeypatch: pytest.MonkeyPat
     )
 
 
+def test_onyx_file_client_resolves_filename_across_unicode_forms(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Onyx may store NFD (u + combining diaeresis); LLM/tool args often send NFC (ü).
+    nfd_name = "Datenerfassungsbogen_GmbH Gru\u0308ndung.pdf"
+    nfc_query = "Datenerfassungsbogen_GmbH Gründung.pdf"
+    payload = json.dumps(
+        [{"id": "uf-gmbh", "name": nfd_name, "file_id": "file-gmbh"}]
+    ).encode("utf-8")
+
+    def fake_urlopen(req: Any, timeout: float = 0) -> _FakeResponse:  # noqa: ARG001
+        return _FakeResponse(status=200, data=payload, content_type="application/json")
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    client = OnyxFileClient(api_base_url="http://onyx.example/api", api_key="test-key")
+    assert client.resolve_file_id_by_name(nfc_query) == "file-gmbh"
+
+
 def test_run_intake_resolves_filename_when_file_id_missing() -> None:
     drive = InMemoryDrive()
     pdf = b"%PDF-1.4 canva-invoice"

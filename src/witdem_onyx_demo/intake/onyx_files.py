@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import unicodedata
 import urllib.error
 import urllib.request
 from typing import Any, Protocol
@@ -16,6 +17,11 @@ class OnyxFileFetcher(Protocol):
     def download(self, file_id: str) -> tuple[bytes, str | None]: ...
 
     def resolve_file_id_by_name(self, filename: str) -> str | None: ...
+
+
+def _norm_name(value: str) -> str:
+    """Casefold + NFC so macOS/NFD upload names match NFC tool args."""
+    return unicodedata.normalize("NFC", value).casefold()
 
 
 class OnyxFileClient:
@@ -74,9 +80,9 @@ class OnyxFileClient:
         except (UnicodeDecodeError, json.JSONDecodeError) as e:
             raise OnyxFileError("Onyx recent files returned invalid JSON") from e
 
-        needle = name.casefold()
+        needle = _norm_name(name)
         for item in items:
-            if str(item.get("name") or "").casefold() != needle:
+            if _norm_name(str(item.get("name") or "")) != needle:
                 continue
             file_id = item.get("file_id") or item.get("id")
             if file_id:
