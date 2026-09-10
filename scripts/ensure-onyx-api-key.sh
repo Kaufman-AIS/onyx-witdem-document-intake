@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# Ensure Onyx has a service API key for Document Intake and write it to .env.
+# Ensure Document Intake can download the admin user's chat uploads.
+#
+# Onyx service-account API keys (prefix on_/dn_) authenticate as a separate
+# SERVICE_ACCOUNT user. That identity gets 403 on /user/files/recent without
+# group grants, and even with admin still cannot read another user's files
+# (ownership check on /chat/file → 404). Intake needs a Personal Access Token
+# (prefix onyx_pat_) owned by the real admin user who uploads PDFs.
 #
 # Idempotent:
-# - If ONYX_API_KEY is already set in .env (or secrets/onyx-api-key), keep it.
-# - Else create/regenerate named key "witdem-intake-deploy" via Onyx insert_api_key.
+# - Reuse secrets/onyx-api-key or .env when value is already an onyx_pat_*.
+# - Otherwise create/rotate PAT named witdem-intake-deploy for the admin user.
 #
 # Requires: onyx-api_server-1 healthy, python3, docker.
 set -euo pipefail
@@ -16,6 +22,10 @@ OWNER_EMAIL="${ONYX_ADMIN_EMAIL:-}"
 
 mkdir -p "$ROOT/secrets"
 chmod 700 "$ROOT/secrets" 2>/dev/null || true
+
+is_user_pat() {
+  [[ "${1:-}" == onyx_pat_* ]]
+}
 
 read_existing() {
   if [[ -f "$SECRET_FILE" ]]; then
@@ -65,12 +75,16 @@ PY
 }
 
 EXISTING="$(read_existing || true)"
-if [[ -n "${EXISTING:-}" ]]; then
+if [[ -n "${EXISTING:-}" ]] && is_user_pat "$EXISTING"; then
   printf '%s' "$EXISTING" >"$SECRET_FILE"
   chmod 600 "$SECRET_FILE"
   upsert_env_key "$EXISTING"
-  echo "ensure-onyx-api-key: reused existing key (len=${#EXISTING})"
+  echo "ensure-onyx-api-key: reused existing user PAT (len=${#EXISTING})"
   exit 0
+fi
+
+if [[ -n "${EXISTING:-}" ]]; then
+  echo "ensure-onyx-api-key: replacing non-PAT credential (service API keys cannot read user uploads)" >&2
 fi
 
 if ! docker ps --format '{{.Names}}' | grep -qx "$API_CONTAINER"; then
@@ -78,16 +92,17 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$API_CONTAINER"; then
   exit 1
 fi
 
-# Create or regenerate via Onyx internals inside api_server
+# Create/rotate a user PAT via Onyx internals inside api_server
 NEW_KEY="$(
   OWNER_EMAIL="$OWNER_EMAIL" KEY_NAME="$KEY_NAME" docker exec -i -e OWNER_EMAIL -e KEY_NAME "$API_CONTAINER" python - <<'PY'
 import os
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 
-from onyx.db.api_key import insert_api_key, regenerate_api_key
 from onyx.db.engine.sql_engine import SqlEngine, get_session_with_current_tenant
-from onyx.db.models import ApiKey, User
-from onyx.server.api_key.models import APIKeyArgs
+from onyx.db.models import PersonalAccessToken, User
+from onyx.db.pat import create_pat
 
 KEY_NAME = os.environ.get("KEY_NAME", "witdem-intake-deploy")
 OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "").strip()
@@ -115,27 +130,41 @@ with get_session_with_current_tenant() as db:
             owner = users[0]
     if owner is None:
         raise SystemExit(
-            "no Onyx user found to own API key — complete admin signup first"
+            "no Onyx user found to own PAT — complete admin signup first"
         )
 
-    existing = db.scalars(select(ApiKey).where(ApiKey.name == KEY_NAME)).first()
-    if existing is not None:
-        desc = regenerate_api_key(db, existing.id)
-    else:
-        desc = insert_api_key(db, APIKeyArgs(name=KEY_NAME, group_ids=[]), owner.id)
+    # Revoke prior deploy PATs with the same name (plaintext cannot be recovered).
+    now = datetime.now(timezone.utc)
+    for old in db.scalars(
+        select(PersonalAccessToken).where(
+            PersonalAccessToken.user_id == owner.id,
+            PersonalAccessToken.name == KEY_NAME,
+        )
+    ).all():
+        if old.expires_at is None or old.expires_at > now:
+            old.expires_at = now
+            old.is_revoked = True
 
-    if not desc.api_key:
-        raise SystemExit("API key create/regenerate did not return plaintext key")
-    # Markers keep docker/uvicorn logging noise out of the captured secret.
+    _row, raw = create_pat(
+        db_session=db,
+        user_id=owner.id,
+        name=KEY_NAME,
+        expiration_days=None,
+        scopes=None,
+    )
+    db.commit()
+
+    if not raw.startswith("onyx_pat_"):
+        raise SystemExit(f"unexpected PAT format: {raw[:12]!r}")
     print("API_KEY_BEGIN")
-    print(desc.api_key)
+    print(raw)
     print("API_KEY_END")
 PY
 )"
 NEW_KEY="$(printf '%s\n' "$NEW_KEY" | awk '/^API_KEY_BEGIN$/{p=1;next} /^API_KEY_END$/{p=0} p' | tr -d '\r' | tail -n1)"
 
-if [[ -z "${NEW_KEY}" ]]; then
-  echo "ensure-onyx-api-key: failed to create key" >&2
+if [[ -z "${NEW_KEY}" ]] || ! is_user_pat "$NEW_KEY"; then
+  echo "ensure-onyx-api-key: failed to create user PAT" >&2
   exit 1
 fi
 
@@ -143,6 +172,6 @@ umask 077
 printf '%s' "$NEW_KEY" >"$SECRET_FILE"
 chmod 600 "$SECRET_FILE"
 upsert_env_key "$NEW_KEY"
-echo "ensure-onyx-api-key: created/rotated key name=$KEY_NAME len=${#NEW_KEY}"
+echo "ensure-onyx-api-key: created/rotated user PAT name=$KEY_NAME len=${#NEW_KEY}"
 echo "ensure-onyx-api-key: stored in $SECRET_FILE and $ENV_FILE"
 echo "ensure-onyx-api-key: optionally copy into GitHub Secret ONYX_API_KEY for multi-host deploys"

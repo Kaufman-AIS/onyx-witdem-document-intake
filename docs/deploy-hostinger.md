@@ -80,7 +80,7 @@ rendered onto the server by `scripts/render-env-from-github.sh` during deploy.
 | Secret | Purpose | Notes |
 | --- | --- | --- |
 | `OPENAI_API_KEY` | Onyx LLM + intake extraction | Required for first useful deploy |
-| `ONYX_API_KEY` | Onyx Admin API key | Leave empty until after admin bootstrap (step 7); then set and re-run deploy |
+| `ONYX_API_KEY` | Admin user PAT for intake file download | Auto-created on deploy (`onyx_pat_…`); optional GitHub override |
 | `ONYX_PERSONA_ID` | Persona used by demo/intake clients | Optional until configured in Onyx |
 | `WITDEM_API_KEY` | Witdem analytics auth (if enabled) | Optional depending on Witdem config |
 | `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Drive root for intake folders | Share folder with SA `client_email` |
@@ -124,12 +124,14 @@ After the first stack is up:
 
 1. Open `https://onyx.kaufman-ais.com` and complete admin registration (once).
 2. Configure the LLM provider (OpenAI + key) in Admin → Language Models.
-3. **API key for Document Intake is automated** on each deploy by
+3. **Credential for Document Intake is automated** on each deploy by
    `./scripts/ensure-onyx-api-key.sh`:
-   - Creates/reuses named key `witdem-intake-deploy`
-   - Writes plaintext to `secrets/onyx-api-key` (gitignored) and `.env`
+   - Creates/reuses a **user PAT** (`onyx_pat_…`) named `witdem-intake-deploy`
+     for the admin account (service-account `on_…` keys cannot read your uploads)
+   - Writes plaintext to `secrets/onyx-api-key` (gitignored) and `.env` as `ONYX_API_KEY`
    - `render-env-from-github.sh` keeps that value if GitHub Secret `ONYX_API_KEY` is empty
-   - Restarts the `intake` service so it can call `GET /chat/file/{id}`
+   - Restarts the `intake` service so it can call `GET /user/files/recent` and
+     `GET /chat/file/{id}`
 
 Optional: copy the value from `secrets/onyx-api-key` into GitHub Secret
 `ONYX_API_KEY` if you want Actions to own the source of truth across hosts.
