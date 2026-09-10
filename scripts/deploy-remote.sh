@@ -62,6 +62,17 @@ if [[ "$healthy" -ne 1 ]]; then
   fi
 fi
 
+# Stale Celery locks after api/background recreate leave uploads stuck on
+# "Waiting for processing" (Lock held, skipping) until the 30m TTL expires.
+if docker ps --format '{{.Names}}' | grep -qx onyx-cache-1; then
+  cleared="$(
+    docker exec onyx-cache-1 sh -c \
+      'redis-cli --scan --pattern "*:da_lock:user_file_processing:*" | xargs -r redis-cli DEL' \
+      2>/dev/null || true
+  )"
+  echo "deploy-remote: cleared stale user-file processing locks (${cleared:-0})"
+fi
+
 # Create/reuse Onyx API key for intake file downloads; persist outside empty GitHub secrets.
 ./scripts/ensure-onyx-api-key.sh "$ROOT/.env"
 
