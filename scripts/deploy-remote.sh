@@ -24,6 +24,15 @@ docker compose \
   -f "$ROOT/docker-compose.prod.yml" \
   up -d --build
 
+# Onyx nginx resolves upstream IPs at start; after api/web recreate it can
+# keep a dead address and serve 502 until restarted.
+docker compose \
+  --project-directory "$COMPOSE_DIR" \
+  -f "$COMPOSE_DIR/docker-compose.yml" \
+  -f "$ROOT/docker-compose.witdem-proxy.yml" \
+  -f "$ROOT/docker-compose.prod.yml" \
+  restart nginx
+
 ./scripts/wait-onyx.sh || true
 
 # Proxy may still be minting a self-signed cert for a few seconds after start.
@@ -39,8 +48,18 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 if [[ "$healthy" -ne 1 ]]; then
-  echo "deploy-remote: health checks failed" >&2
-  exit 1
+  echo "deploy-remote: health checks failed — retrying nginx restart once" >&2
+  docker compose \
+    --project-directory "$COMPOSE_DIR" \
+    -f "$COMPOSE_DIR/docker-compose.yml" \
+    -f "$ROOT/docker-compose.witdem-proxy.yml" \
+    -f "$ROOT/docker-compose.prod.yml" \
+    restart nginx
+  sleep 3
+  if ! curl -fsS --max-time 5 http://127.0.0.1:3021/api/health >/dev/null; then
+    echo "deploy-remote: health checks failed" >&2
+    exit 1
+  fi
 fi
 
 # Create/reuse Onyx API key for intake file downloads; persist outside empty GitHub secrets.
