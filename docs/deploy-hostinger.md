@@ -128,17 +128,32 @@ After the stack is up:
 4. Set GitHub secret `ONYX_API_KEY` to that value.
 5. **Re-run** the Deploy Hostinger workflow so the server `.env` picks it up.
 
-## 8. Register the intake OpenAPI tool
+## 8. Document Intake OpenAPI tool (automated)
 
-In Onyx Admin, register the custom tool at the **Docker network** URL (intake is
-a Compose service, not host-mapped for Onyx):
+Each successful `./scripts/deploy-remote.sh` run calls
+`./scripts/register-intake-onyx-tool.sh`, which **idempotently**:
 
-```text
-http://intake:8091/tools/run_intake
+1. Upserts the custom Onyx tool **Document Intake** (`run_intake`) with OpenAPI
+   server URL `http://intake:8091` (Docker DNS — not `host.docker.internal`).
+2. Attaches it to persona **0** (Assistant).
+3. Appends `run_intake` filing instructions to that persona’s `system_prompt` if
+   missing.
+
+Manual Admin registration is **not** required after a green deploy. To re-run
+only the registration step on the VPS:
+
+```bash
+cd /opt/onyx-witdem-document-intake
+./scripts/register-intake-onyx-tool.sh
 ```
 
-Attach the tool to the relevant persona. Local Mac setup uses
-`host.docker.internal`; production must use `http://intake:8091/...`.
+Local Mac setup (tool on the host) still uses
+`http://host.docker.internal:8091` — see
+[docs/intake-onyx-tool-setup.md](intake-onyx-tool-setup.md).
+
+**Still manual (not in git):** configure an LLM provider in Onyx Admin, create
+`ONYX_API_KEY`, set the GitHub secret, and re-deploy so intake can download
+original upload bytes from Onyx.
 
 ## 9. Verification matrix
 

@@ -69,6 +69,15 @@ curl -s http://127.0.0.1:8091/health
 
 ## 3. Register the custom tool in Onyx Admin
 
+### Production (Hostinger)
+
+Registration is **automated** on each deploy via
+`scripts/register-intake-onyx-tool.sh` (invoked from `scripts/deploy-remote.sh`).
+The OpenAPI server URL is `http://intake:8091`. See
+[deploy-hostinger.md](deploy-hostinger.md) §8.
+
+### Local Mac
+
 Onyx runs inside Docker; the tool server runs on your Mac host.
 
 | Onyx location | Tool URL |
