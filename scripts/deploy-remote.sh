@@ -43,6 +43,18 @@ if [[ "$healthy" -ne 1 ]]; then
   exit 1
 fi
 
+# Create/reuse Onyx API key for intake file downloads; persist outside empty GitHub secrets.
+./scripts/ensure-onyx-api-key.sh "$ROOT/.env"
+
+# Reload intake so it picks up ONYX_API_KEY from .env
+export ONYX_DEMO_ROOT="$ROOT"
+docker compose \
+  --project-directory "$COMPOSE_DIR" \
+  -f "$COMPOSE_DIR/docker-compose.yml" \
+  -f "$ROOT/docker-compose.witdem-proxy.yml" \
+  -f "$ROOT/docker-compose.prod.yml" \
+  up -d intake
+
 # Register Document Intake OpenAPI tool + persona wiring (idempotent).
 ./scripts/register-intake-onyx-tool.sh
 

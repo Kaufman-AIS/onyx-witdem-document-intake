@@ -120,13 +120,19 @@ Skip this file only if you keep `INTAKE_USE_MEMORY=1`.
 
 ## 7. Onyx admin bootstrap + API key
 
-After the stack is up:
+After the first stack is up:
 
-1. Open `https://onyx.kaufman-ais.com` and complete admin registration.
-2. Configure the LLM provider (OpenAI + key) if prompted.
-3. Admin Panel → create an **API key** (chat + ingestion as needed).
-4. Set GitHub secret `ONYX_API_KEY` to that value.
-5. **Re-run** the Deploy Hostinger workflow so the server `.env` picks it up.
+1. Open `https://onyx.kaufman-ais.com` and complete admin registration (once).
+2. Configure the LLM provider (OpenAI + key) in Admin → Language Models.
+3. **API key for Document Intake is automated** on each deploy by
+   `./scripts/ensure-onyx-api-key.sh`:
+   - Creates/reuses named key `witdem-intake-deploy`
+   - Writes plaintext to `secrets/onyx-api-key` (gitignored) and `.env`
+   - `render-env-from-github.sh` keeps that value if GitHub Secret `ONYX_API_KEY` is empty
+   - Restarts the `intake` service so it can call `GET /chat/file/{id}`
+
+Optional: copy the value from `secrets/onyx-api-key` into GitHub Secret
+`ONYX_API_KEY` if you want Actions to own the source of truth across hosts.
 
 ## 8. Document Intake OpenAPI tool (automated)
 
@@ -151,9 +157,9 @@ Local Mac setup (tool on the host) still uses
 `http://host.docker.internal:8091` — see
 [docs/intake-onyx-tool-setup.md](intake-onyx-tool-setup.md).
 
-**Still manual (not in git):** configure an LLM provider in Onyx Admin, create
-`ONYX_API_KEY`, set the GitHub secret, and re-deploy so intake can download
-original upload bytes from Onyx.
+**Still manual (not in git):** configure an LLM provider in Onyx Admin.
+`ONYX_API_KEY` is created automatically by `scripts/ensure-onyx-api-key.sh` on
+deploy (see §7 above).
 
 ## 9. Verification matrix
 

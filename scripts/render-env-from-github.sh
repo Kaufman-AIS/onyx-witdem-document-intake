@@ -38,6 +38,17 @@ vals = {
     "GOOGLE_OAUTH_REFRESH_TOKEN": os.environ.get("GOOGLE_OAUTH_REFRESH_TOKEN", ""),
 }
 
+# Prefer non-empty GitHub/env value; else secrets/onyx-api-key; else previous .env.
+if not vals["ONYX_API_KEY"]:
+    secret_file = root / "secrets" / "onyx-api-key"
+    if secret_file.is_file():
+        vals["ONYX_API_KEY"] = secret_file.read_text(encoding="utf-8").strip()
+    elif out.is_file():
+        for line in out.read_text(encoding="utf-8").splitlines():
+            if line.startswith("ONYX_API_KEY="):
+                vals["ONYX_API_KEY"] = line.split("=", 1)[1].strip().strip('"')
+                break
+
 def escape(value: str) -> str:
     # Keep Compose/dotenv single-line; never wrap in quotes (keys may contain ").
     return value.replace("\r", "").replace("\n", "")
