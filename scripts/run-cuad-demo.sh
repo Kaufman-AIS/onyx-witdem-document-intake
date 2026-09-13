@@ -42,6 +42,17 @@ done
 
 export WITDEM_ENDPOINT
 export CONTRACT_REVIEW_MODE=live
+# Showcase should exercise Voyage embeddings + LanceDB hybrid retrieval.
+export CONTRACT_REVIEW_MEMORY_MODE="${CONTRACT_REVIEW_MEMORY_MODE:-retrieve}"
+export CONTRACT_REVIEW_EMBEDDING_MODEL="${CONTRACT_REVIEW_EMBEDDING_MODEL:-voyage/voyage-4-large}"
+
+MEMORY_URI="$(grep -E '^CONTRACT_REVIEW_MEMORY_URI=' .env | head -n1 | cut -d= -f2- || true)"
+MEMORY_URI="${MEMORY_URI:-data/contract-memory-live-20260911}"
+export CONTRACT_REVIEW_MEMORY_URI="$MEMORY_URI"
+if [[ ! -d "$MEMORY_URI" ]] || [[ -z "$(find "$MEMORY_URI" -type f 2>/dev/null | head -n1)" ]]; then
+  echo "Seeding LanceDB contract memory at $MEMORY_URI (Voyage live) ..."
+  uv run contract-memory seed examples/precedents/vendor_saas_approved.yaml --mode live --recreate
+fi
 
 if [[ ! -f "$SHOWCASE_PDF" ]]; then
   echo "Creating showcase scanned PDF at $SHOWCASE_PDF ..."
