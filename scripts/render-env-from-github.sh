@@ -27,6 +27,7 @@ vals = {
     "ONYX_PERSONA_ID": os.environ.get("ONYX_PERSONA_ID", ""),
     "WITDEM_ENDPOINT": os.environ.get("WITDEM_ENDPOINT", "http://witdem:4318"),
     "WITDEM_API_KEY": os.environ.get("WITDEM_API_KEY", ""),
+    "WITDEM_ANALYTICS_IMAGE": os.environ.get("WITDEM_ANALYTICS_IMAGE", ""),
     "INTAKE_USE_MEMORY": os.environ.get("INTAKE_USE_MEMORY", "0"),
     "GOOGLE_APPLICATION_CREDENTIALS": os.environ.get(
         "GOOGLE_APPLICATION_CREDENTIALS", "/run/secrets/google-sa.json"
@@ -48,6 +49,16 @@ if not vals["ONYX_API_KEY"]:
             if line.startswith("ONYX_API_KEY="):
                 vals["ONYX_API_KEY"] = line.split("=", 1)[1].strip().strip('"')
                 break
+
+# Keep the Hostinger demo on the local UI image across deploys unless explicitly overridden.
+if not vals["WITDEM_ANALYTICS_IMAGE"]:
+    if out.is_file():
+        for line in out.read_text(encoding="utf-8").splitlines():
+            if line.startswith("WITDEM_ANALYTICS_IMAGE="):
+                vals["WITDEM_ANALYTICS_IMAGE"] = line.split("=", 1)[1].strip().strip('"')
+                break
+    if not vals["WITDEM_ANALYTICS_IMAGE"]:
+        vals["WITDEM_ANALYTICS_IMAGE"] = "witdem-analytics:demo-local"
 
 def escape(value: str) -> str:
     # Keep Compose/dotenv single-line; never wrap in quotes (keys may contain ").

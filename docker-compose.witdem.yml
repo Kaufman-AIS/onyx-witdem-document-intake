@@ -2,7 +2,7 @@ name: witdem
 
 services:
   witdem:
-    image: ${WITDEM_ANALYTICS_IMAGE:-ghcr.io/ebrahimisoheil/witdem-analytics:0.2.6}
+    image: ${WITDEM_ANALYTICS_IMAGE:-witdem-analytics:demo-local}
     command: ["witdem", "serve", "--host", "0.0.0.0", "--port", "4318", "--db", "/app/data/live.duckdb"]
     ports:
       - "127.0.0.1:4318:4318"
@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
 
   elt-worker:
-    image: ${WITDEM_ANALYTICS_IMAGE:-ghcr.io/ebrahimisoheil/witdem-analytics:0.2.6}
+    image: ${WITDEM_ANALYTICS_IMAGE:-witdem-analytics:demo-local}
     command: ["witdem", "elt", "worker", "--poll-interval", "0.25"]
     environment:
       WITDEM_DATA_DIR: /app/data
@@ -38,7 +38,7 @@ services:
     restart: unless-stopped
 
   dashboard:
-    image: ${WITDEM_ANALYTICS_IMAGE:-ghcr.io/ebrahimisoheil/witdem-analytics:0.2.6}
+    image: ${WITDEM_ANALYTICS_IMAGE:-witdem-analytics:demo-local}
     command: ["witdem", "dashboard", "--db", "/app/data/live.duckdb", "--dashboard-host", "0.0.0.0", "--dashboard-port", "8501"]
     ports:
       - "127.0.0.1:8501:8501"
