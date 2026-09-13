@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# uv installers put the binary in ~/.local/bin (often missing from non-login PATH).
+export PATH="${HOME}/.local/bin:${PATH}"
+
 CUAD_DIR="${CUAD_DIR:-/home/deploy/haystack-cuad-contract-review}"
 WITDEM_ENDPOINT="${WITDEM_ENDPOINT:-http://127.0.0.1:4318}"
 DASHBOARD_URL="${DASHBOARD_URL:-http://127.0.0.1:8501}"
 SHOWCASE_PDF="${SHOWCASE_PDF:-output/showcase/scanned-vendor-saas.pdf}"
 SHOWCASE_TIMEOUT="${SHOWCASE_TIMEOUT:-300}"
+
+if ! command -v uv >/dev/null 2>&1; then
+  echo "uv not found on PATH (tried \$HOME/.local/bin). Install: curl -LsSf https://astral.sh/uv/install.sh | sh" >&2
+  exit 1
+fi
 
 if ! curl -fsS "${WITDEM_ENDPOINT%/}/readiness" >/dev/null; then
   echo "Witdem receiver not ready at ${WITDEM_ENDPOINT%/}/readiness" >&2
