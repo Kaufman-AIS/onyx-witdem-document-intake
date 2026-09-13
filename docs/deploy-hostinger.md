@@ -176,6 +176,47 @@ deploy (see §7 above).
 | Drive/Tasks side effects | When not memory mode: files in Drive, tasks when OAuth configured |
 | End-to-end demo | Chat on Onyx host appears in Witdem; intake files to Drive |
 
+## 10. CUAD live showcase (manual)
+
+Feed live multi-model contract-review runs into the existing Witdem dashboard
+([demo.witdem.com](https://demo.witdem.com)). No new public port; OTLP stays on
+`127.0.0.1:4318`.
+
+### One-time setup on the VPS
+
+```bash
+git clone https://github.com/ebrahimisoheil/haystack-cuad-contract-review.git \
+  /home/deploy/haystack-cuad-contract-review
+cd /home/deploy/haystack-cuad-contract-review
+uv sync
+# Create .env with OPENAI/MISTRAL/DEEPSEEK/VOYAGE keys (never commit).
+# CONTRACT_REVIEW_MODE in the file may say deterministic; the run script forces live.
+cp .env.example .env
+$EDITOR .env
+```
+
+Keep document-intake updated so the script exists:
+
+```bash
+cd /opt/onyx-witdem-document-intake
+git pull --ff-only
+```
+
+### Re-run before a customer demo
+
+```bash
+cd /opt/onyx-witdem-document-intake
+./scripts/run-cuad-demo.sh
+```
+
+Optional overrides: `CUAD_DIR`, `WITDEM_ENDPOINT`, `DASHBOARD_URL`, `SHOWCASE_TIMEOUT`.
+
+### Verify
+
+1. Script exits 0 and prints provider verification.
+2. https://demo.witdem.com shows a new run for `haystack-cuad-contract-review`.
+3. `ss -lntp | grep 4318` still shows localhost-only bind.
+
 ## Safety: volumes and rollback
 
 - **Do not** run `docker compose down -v` for routine deploys — that deletes
