@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Agency showcase: self-hosted Onyx knowledge brain with Witdem audit analytics"
 requires-python = ">=3.10,<3.14"
 dependencies = [
-  "witdem-sdk==0.2.2",
+  "witdem-sdk==0.2.3",
   "httpx>=0.27,<1",
   "pyyaml>=6,<7",
   "python-dotenv>=1,<2",
