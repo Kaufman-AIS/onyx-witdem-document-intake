@@ -21,6 +21,7 @@ from witdem_onyx_demo.intake.haystack_components import (
     ReceiveDocument,
 )
 from witdem_onyx_demo.intake.models import IntakeRequest, IntakeResult, TaskItem
+from witdem_onyx_demo.intake.paca_sync import maybe_sync_intake_to_paca
 from witdem_onyx_demo.intake.tasks_client import TasksClient
 
 _EXTRACT_FIELDS = (
@@ -239,7 +240,7 @@ def run_haystack_intake(
                             )
 
         confirm = outputs.get("confirm") or {}
-        return IntakeResult(
+        result = IntakeResult(
             ok=bool(confirm.get("ok")),
             doc_type=confirm.get("doc_type") or "other",
             drive_path=confirm.get("drive_path"),
@@ -247,6 +248,14 @@ def run_haystack_intake(
             tasks_created=_tasks_from_confirm(confirm.get("tasks_created")),
             message=confirm.get("message") or "",
         )
+        with _operation(
+            witdem,
+            "intake.paca",
+            kind="component",
+            type="tool",
+            interface="tool",
+        ):
+            return maybe_sync_intake_to_paca(result)
     except Exception as e:
         root = e.__cause__ if e.__cause__ is not None else e
         return IntakeResult(
