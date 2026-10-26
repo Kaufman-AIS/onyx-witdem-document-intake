@@ -79,6 +79,7 @@ rendered onto the server by `scripts/render-env-from-github.sh` during deploy.
 
 | Secret | Purpose | Notes |
 | --- | --- | --- |
+| `WITDEM_SOURCE_TOKEN` | Read `Kaufman-AIS/witdem-internal` during dashboard image build | Fine-grained token with read-only Contents access; used only by the Actions runner |
 | `OPENAI_API_KEY` | Onyx LLM + intake extraction | Required for first useful deploy |
 | `ONYX_API_KEY` | Admin user PAT for intake file download | Auto-created on deploy (`onyx_pat_…`); optional GitHub override |
 | `ONYX_PERSONA_ID` | Persona used by demo/intake clients | Optional until configured in Onyx |
@@ -115,8 +116,10 @@ Skip this file only if you keep `INTAKE_USE_MEMORY=1`.
 1. Ensure nginx + certs and SSH secrets are ready.
 2. In GitHub Actions, run **Deploy Hostinger** via **`workflow_dispatch`**
    (or push to `main` once the workflow is on that branch).
-3. The job SSHes in, clones or updates `/opt/onyx-witdem-document-intake`, and
-   runs `./scripts/deploy-remote.sh` (`docker compose … up -d`, no volume wipe).
+3. The job checks out the private Witdem source with `WITDEM_SOURCE_TOKEN`,
+   builds and transfers the dashboard image, then SSHes in, clones or updates
+   `/opt/onyx-witdem-document-intake`, and runs `./scripts/deploy-remote.sh`
+   (`docker compose … up -d`, no volume wipe).
 
 ## 7. Onyx admin bootstrap + API key
 
