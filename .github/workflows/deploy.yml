@@ -13,6 +13,30 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Witdem dashboard source
+        uses: actions/checkout@v4
+        with:
+          repository: Kaufman-AIS/witdem-internal
+          ref: main
+          token: ${{ secrets.WITDEM_SOURCE_TOKEN }}
+          path: witdem-source
+
+      - name: Build Witdem dashboard image
+        run: docker build -f witdem-source/Dockerfile.witdem -t witdem-analytics:demo-local witdem-source
+
+      - name: Package Witdem dashboard image
+        run: docker save witdem-analytics:demo-local | gzip > witdem-analytics.tar.gz
+
+      - name: Copy Witdem dashboard image to Hostinger
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: witdem-analytics.tar.gz
+          target: /tmp
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -37,6 +61,8 @@ jobs:
           envs: OPENAI_API_KEY,ONYX_API_KEY,ONYX_PERSONA_ID,WITDEM_API_KEY,GOOGLE_DRIVE_ROOT_FOLDER_ID,GOOGLE_TASKS_LIST_ID,GOOGLE_OAUTH_CLIENT_ID,GOOGLE_OAUTH_CLIENT_SECRET,GOOGLE_OAUTH_REFRESH_TOKEN,INTAKE_USE_MEMORY
           script: |
             set -euo pipefail
+            docker load -i /tmp/witdem-analytics.tar.gz
+            rm -f /tmp/witdem-analytics.tar.gz
             APP=/opt/onyx-witdem-document-intake
             if [[ ! -d "$APP/.git" ]]; then
               sudo mkdir -p /opt
